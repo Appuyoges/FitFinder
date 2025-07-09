@@ -9,6 +9,7 @@ nltk.download('punkt')
 
 app = Flask(__name__)
 
+# Define required and bonus keywords
 REQUIRED_KEYWORDS = {
     "python": ["python", "py"],
     "sql": ["sql", "mysql", "postgresql", "sqlite"],
@@ -25,6 +26,7 @@ THRESHOLD = 60  # Minimum percentage to qualify
 
 stemmer = PorterStemmer()
 
+# Function to extract text from various file types
 def extract_text(file_storage):
     filename = file_storage.filename.lower()
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -41,10 +43,12 @@ def extract_text(file_storage):
             return ""
     os.unlink(temp_file.name)
 
+# Preprocess text by tokenizing and stemming
 def preprocess(text):
     tokens = word_tokenize(text.lower())
     return [stemmer.stem(token) for token in tokens]
 
+# Match keywords in preprocessed text
 def match_keywords(processed_text, keyword_dict):
     matched = []
     for canonical, variants in keyword_dict.items():
@@ -55,6 +59,12 @@ def match_keywords(processed_text, keyword_dict):
                 break
     return list(set(matched))
 
+# Root route (fix for 404 on base URL)
+@app.route("/", methods=["GET"])
+def index():
+    return "Welcome to FitFinder Resume Checker API! Use POST /check_resume to evaluate a resume."
+
+# Resume evaluation route
 @app.route("/check_resume", methods=["POST"])
 def check_resume():
     text = ""
@@ -88,4 +98,3 @@ def check_resume():
 
 if __name__ == "__main__":
     app.run()
-
