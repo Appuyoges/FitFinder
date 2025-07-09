@@ -5,9 +5,7 @@ from docx import Document
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 import nltk
-nltk.data.path.append("/tmp/nltk_data")
-nltk.download('punkt', download_dir='/tmp/nltk_data')
-
+nltk.download('punkt')
 
 app = Flask(__name__)
 
@@ -40,8 +38,7 @@ def extract_text(file_storage):
             doc = Document(temp_file.name)
             return "\n".join([para.text for para in doc.paragraphs])
         elif filename.endswith(".txt"):
-            with open(temp_file.name, "r", encoding="utf-8") as f:
-                return f.read()
+            return temp_file.read().decode("utf-8")
         else:
             return ""
     os.unlink(temp_file.name)
