@@ -1,15 +1,11 @@
 from flask import Flask, request, jsonify
-import re, os, tempfile
+import os, tempfile
 import pdfplumber
 from docx import Document
 from nltk.stem import PorterStemmer
-from nltk.tokenize import word_tokenize
-import nltk
-nltk.download('punkt')
 
-app = Flask(__name__)
+app = Flask(_name_)
 
-# Define required and bonus keywords
 REQUIRED_KEYWORDS = {
     "python": ["python", "py"],
     "sql": ["sql", "mysql", "postgresql", "sqlite"],
@@ -22,60 +18,73 @@ BONUS_KEYWORDS = {
     "leadership": ["leadership", "team lead", "mentorship"],
 }
 
-THRESHOLD = 60  # Minimum percentage to qualify
-
+THRESHOLD = 60
 stemmer = PorterStemmer()
 
-# Function to extract text from various file types
 def extract_text(file_storage):
     filename = file_storage.filename.lower()
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        file_storage.save(temp_file.name)
+    temp_path = ""
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_path = temp_file.name
+            file_storage.save(temp_path)
+
         if filename.endswith(".pdf"):
-            with pdfplumber.open(temp_file.name) as pdf:
+            with pdfplumber.open(temp_path) as pdf:
                 return "\n".join(page.extract_text() or "" for page in pdf.pages)
         elif filename.endswith(".docx"):
-            doc = Document(temp_file.name)
-            return "\n".join([para.text for para in doc.paragraphs])
+            doc = Document(temp_path)
+            return "\n".join(para.text for para in doc.paragraphs)
         elif filename.endswith(".txt"):
-            return temp_file.read().decode("utf-8")
+            with open(temp_path, 'r', encoding='utf-8') as f:
+                return f.read()
         else:
             return ""
-    os.unlink(temp_file.name)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except PermissionError:
+                pass
 
-# Preprocess text by tokenizing and stemming
+# ✅ Simple tokenizer (no nltk.download needed)
 def preprocess(text):
-    tokens = word_tokenize(text.lower())
-    return [stemmer.stem(token) for token in tokens]
+    tokens = text.lower().replace('\n', ' ').split()
+    return [stemmer.stem(token.strip(".,!?;:()[]{}\"'")) for token in tokens]
 
-# Match keywords in preprocessed text
 def match_keywords(processed_text, keyword_dict):
     matched = []
     for canonical, variants in keyword_dict.items():
         for variant in variants:
-            variant_stemmed = [stemmer.stem(word) for word in word_tokenize(variant.lower())]
+            variant_stemmed = [stemmer.stem(word) for word in variant.lower().split()]
             if all(stem in processed_text for stem in variant_stemmed):
                 matched.append(canonical)
                 break
     return list(set(matched))
 
-# Root route (fix for 404 on base URL)
 @app.route("/", methods=["GET"])
 def index():
-    return "Welcome to FitFinder Resume Checker API! Use POST /check_resume to evaluate a resume."
+    return "✅ Welcome to FitFinder Resume Checker API! Use POST /check_resume to evaluate resumes."
 
-# Resume evaluation route
 @app.route("/check_resume", methods=["POST"])
 def check_resume():
+    print("Request content-type:", request.content_type)
     text = ""
+
     if "resume_file" in request.files:
+        print("🔍 File received")
         file = request.files["resume_file"]
         text = extract_text(file)
-    elif request.json:
+    elif request.is_json:
+        print("📝 JSON received")
         text = request.json.get("resume_text", "")
-    
-    if not text.strip():
+    else:
+        print("⚠️ No valid input found")
         return jsonify({"error": "No resume content provided"}), 400
+
+    if not text.strip():
+        return jsonify({"error": "Empty or invalid resume content"}), 400
 
     processed = preprocess(text)
 
@@ -94,7 +103,7 @@ def check_resume():
         "required_matched": required_matched,
         "bonus_matched": bonus_matched,
         "missing_required": list(set(REQUIRED_KEYWORDS) - set(required_matched))
-    })
+    }), 200
 
-if __name__ == "__main__":
-    app.run()
+if _name_ == "_main_":
+    app.run(debug=True)
