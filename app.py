@@ -4,7 +4,7 @@ import pdfplumber
 from docx import Document
 from nltk.stem import PorterStemmer
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 REQUIRED_KEYWORDS = {
     "python": ["python", "py"],
@@ -105,5 +105,5 @@ def check_resume():
         "missing_required": list(set(REQUIRED_KEYWORDS) - set(required_matched))
     }), 200
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     app.run(debug=True)
